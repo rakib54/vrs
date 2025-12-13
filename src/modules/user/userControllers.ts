@@ -21,24 +21,55 @@ const getUsers = async (req: Request, res: Response) => {
   }
 };
 
-const updateUsers = async (req: Request, res: Response) => {
+const updateUser = async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
-    const { name, email, phone } = req.body;
+    const { ...userData } = req.body;
 
-    const user = await userService.updateUsers(userId as string, name, email);
+    const user = req?.user as JwtPayload;
+
+    // Need to update this customer himself or admin only
+    if (user.id !== userId && user.role !== 'admin') {
+      return res.status(403).json({ error: 'Forbidden: Access is denied' });
+    }
+
+    const updatedUserInfo = await userService.updateUsers(
+      userId as string,
+      userData
+    );
 
     res.status(200).json({
       success: true,
       message: 'User updated successfully',
-      user: user.rows[0],
+      user: updatedUserInfo,
     });
   } catch (error) {
     res.status(500).json({ error: 'Error updating user', errorDetails: error });
   }
 };
 
+const deleteUser = async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    const user = req?.user as JwtPayload;
+
+    if (user.role !== 'admin') {
+      return res.status(403).json({ error: 'Forbidden: Access is denied' });
+    }
+
+    await userService.deleteUser(userId as string);
+
+    res.status(200).json({
+      success: true,
+      message: `User with ID ${userId} deleted successfully`,
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Error deleting user', errorDetails: error });
+  }
+};
+
 export const userControllers = {
   getUsers,
-  updateUsers,
+  updateUser,
+  deleteUser,
 };
