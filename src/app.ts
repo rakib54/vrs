@@ -3,6 +3,7 @@ import config from './config';
 import initDb from './config/db';
 import { authRoutes } from './modules/auth/authRoutes';
 import { userRoutes } from './modules/user/userRoutes';
+import { vehicleRoutes } from './modules/vehicle/vehicleRoutes';
 
 const app = express();
 const PORT = config.port || 3000;
@@ -18,6 +19,7 @@ app.use(express.json());
 
 app.use('/api/v1', authRoutes);
 app.use('/api/v1', userRoutes);
+app.use('/api/v1', vehicleRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);

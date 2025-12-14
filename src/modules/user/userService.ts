@@ -3,6 +3,10 @@ import { pool } from '../../config/db';
 const getUsers = async () => {
   const users = await pool.query(`SELECT * FROM users`);
 
+  users.rows = users.rows.map(({ password, ...rest }) => {
+    return rest;
+  });
+
   return users;
 };
 
@@ -12,22 +16,25 @@ const updateUsers = async (userId: string, userData: Object) => {
   if (user.rows.length === 0) {
     throw new Error('User not found');
   }
-  const userFields = Object.keys(userData);
+  const userFieldsKeys = Object.keys(userData);
 
-  const setClause = userFields
+  const setClause = userFieldsKeys
     .map((field, index) => `${field} = $${index + 1}`)
     .join(', ');
 
-  const values = Object.values(userData);
+  const userFieldValues = Object.values(userData);
 
   const updateQuery = `
     UPDATE users
     SET ${setClause}
-    WHERE id = $${userFields.length + 1}
+    WHERE id = $${userFieldsKeys.length + 1}
     RETURNING *
   `;
 
-  const updatedUser = await pool.query(updateQuery, [...values, userId]);
+  const updatedUser = await pool.query(updateQuery, [
+    ...userFieldValues,
+    userId,
+  ]);
 
   return updatedUser.rows[0];
 };
