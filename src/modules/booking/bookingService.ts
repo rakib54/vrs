@@ -7,13 +7,73 @@ const createBooking = async (
   endDate: string
 ) => {
   try {
-    const booking = await pool.query(
-      'INSERT INTO bookings (user_id, vehicle_id, start_date, end_date) VALUES ($1, $2, $3, $4) RETURNING *',
-      [userId, vehicleId, startDate, endDate]
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    if (end <= start) {
+      throw new Error('End date must be after start date');
+    }
+
+    const vehicleResult = await pool.query(
+      `
+      SELECT id, vehicle_name, daily_rent_price, availability_status
+      FROM vehicles
+      WHERE id = $1
+      `,
+      [vehicleId]
     );
-    return booking.rows[0];
-  } catch (error) {
-    throw new Error('Error creating booking');
+
+    if (vehicleResult.rows.length === 0) {
+      throw new Error('Vehicle not found');
+    }
+
+    const vehicle = vehicleResult.rows[0];
+
+    if (vehicle.availability_status !== 'available') {
+      throw new Error('Vehicle is not available for booking');
+    }
+
+    const diffTime = end.getTime() - start.getTime();
+    const totalDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const totalPrice = totalDays * vehicle.daily_rent_price;
+
+    const bookingResult = await pool.query(
+      `
+      INSERT INTO bookings
+        (customer_id, vehicle_id, rent_start_date, rent_end_date, total_price, status)
+      VALUES
+        ($1, $2, $3, $4, $5, 'active')
+      RETURNING *
+      `,
+      [userId, vehicleId, startDate, endDate, totalPrice]
+    );
+    const booking = bookingResult.rows[0];
+
+    await pool.query(
+      `
+      UPDATE vehicles
+      SET availability_status = 'booked'
+      WHERE id = $1
+      `,
+      [vehicleId]
+    );
+
+    return {
+      id: booking.id,
+      customer_id: booking.customer_id,
+      vehicle_id: booking.vehicle_id,
+      rent_start_date: booking.rent_start_date,
+      rent_end_date: booking.rent_end_date,
+      total_price: booking.total_price,
+      status: booking.status,
+      vehicle: {
+        vehicle_name: vehicle.vehicle_name,
+        daily_rent_price: vehicle.daily_rent_price,
+      },
+    };
+  } catch (error: any) {
+    console.log({ error });
+    throw new Error('Error creating booking', error);
   }
 };
 

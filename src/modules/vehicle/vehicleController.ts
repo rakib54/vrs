@@ -92,7 +92,7 @@ const deleteVehicle = async (req: Request, res: Response) => {
     if (!deleted) {
       return res.status(404).send({
         success: false,
-        message: 'Vehicle not found',
+        message: 'Booked vehicle cannot be deleted',
       });
     }
     res.status(200).send({
@@ -104,9 +104,70 @@ const deleteVehicle = async (req: Request, res: Response) => {
   }
 };
 
+const updateVehiclesById = async (req: Request, res: Response) => {
+  const { vehicleId } = req.params;
+  const user = req.user;
+
+  if (user?.role !== 'admin') {
+    return res.status(403).send({ message: 'Forbidden: Admins only' });
+  }
+
+  // Destructure body
+  const {
+    vehicle_name,
+    type,
+    registration_number,
+    daily_rent_price,
+    availability_status,
+  } = req.body;
+
+  // Build update object dynamically
+  const updateData: Record<string, any> = {};
+
+  if (vehicle_name !== undefined) updateData.vehicle_name = vehicle_name;
+  if (type !== undefined) updateData.type = type;
+  if (registration_number !== undefined)
+    updateData.registration_number = registration_number;
+  if (daily_rent_price !== undefined)
+    updateData.daily_rent_price = daily_rent_price;
+  if (availability_status !== undefined)
+    updateData.availability_status = availability_status;
+
+  // Nothing to update
+  if (Object.keys(updateData).length === 0) {
+    return res.status(400).send({
+      success: false,
+      message: 'At least one field must be provided to update',
+    });
+  }
+
+  try {
+    const updatedVehicle = await vehicleService.updateVehicleById(
+      vehicleId as string,
+      updateData
+    );
+
+    if (!updatedVehicle) {
+      return res.status(404).send({
+        success: false,
+        message: 'Vehicle not found',
+      });
+    }
+
+    res.status(200).send({
+      success: true,
+      message: 'Vehicle updated successfully',
+      data: updatedVehicle,
+    });
+  } catch (error) {
+    res.status(500).send({ message: 'Error updating vehicle', error });
+  }
+};
+
 export const vehicleControllers = {
   createVehicle,
   getVehicles,
   getVehiclesById,
   deleteVehicle,
+  updateVehiclesById,
 };
