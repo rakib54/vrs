@@ -1,3 +1,4 @@
+import { JwtPayload } from 'jsonwebtoken';
 import { pool } from '../../config/db';
 
 const createBooking = async (
@@ -77,6 +78,92 @@ const createBooking = async (
   }
 };
 
+const getBookings = async (user: JwtPayload) => {
+  try {
+    const bookingsResult = await pool.query(
+      `
+      SELECT * FROM bookings
+      `
+    );
+    const bookings = bookingsResult.rows;
+
+    const mappedBookings = await Promise.all(
+      bookings.map(async (booking) => {
+        const vehicleResult = await pool.query(
+          `
+          SELECT vehicle_name, registration_number, type FROM vehicles WHERE id = $1
+          `,
+          [booking.vehicle_id]
+        );
+
+        const customer = await pool.query(
+          `
+          SELECT name, email FROM users WHERE id = $1
+          `,
+          [booking.customer_id]
+        );
+        const vehicle = vehicleResult.rows[0];
+
+        if (user.role === 'admin') {
+          return {
+            ...booking,
+            customer: {
+              name: customer.rows[0].name,
+              email: customer.rows[0].email,
+            },
+            vehicle: {
+              vehicle_name: vehicle.vehicle_name,
+              registration_number: vehicle.registration_number,
+            },
+          };
+        }
+        return {
+          ...booking,
+          vehicle: {
+            vehicle_name: vehicle.vehicle_name,
+            registration_number: vehicle.registration_number,
+            type: vehicle.type,
+          },
+        };
+      })
+    );
+
+    if (user.role === 'customer') {
+      return mappedBookings.filter(
+        (booking) => booking.customer_id === user.id
+      );
+    }
+    return mappedBookings;
+  } catch (error: any) {
+    throw new Error('Error retrieving bookings', error);
+  }
+};
+
+const updateBookingStatus = async (bookingId: string, status: string) => {
+  try {
+    const result = await pool.query(
+      `
+      UPDATE bookings
+      SET status = $1
+      WHERE id = $2
+      RETURNING *
+      `,
+      [status, bookingId]
+    );
+
+    if (result.rows.length === 0) {
+      throw new Error('Booking not found');
+    }
+
+    return result.rows[0];
+  } catch (error: any) {
+    console.log({ error });
+    throw new Error('Error updating booking status', error);
+  }
+};
+
 export const bookingService = {
   createBooking,
+  getBookings,
+  updateBookingStatus,
 };

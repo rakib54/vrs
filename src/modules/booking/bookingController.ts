@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { JwtPayload } from 'jsonwebtoken';
 import { bookingService } from './bookingService';
 
 const createBooking = async (req: Request, res: Response) => {
@@ -12,7 +13,6 @@ const createBooking = async (req: Request, res: Response) => {
       rent_start_date,
       rent_end_date
     );
-    console.log({ newBooking });
 
     res.status(201).json({
       success: true,
@@ -24,6 +24,42 @@ const createBooking = async (req: Request, res: Response) => {
   }
 };
 
+const getBookings = async (req: Request, res: Response) => {
+  try {
+    const user = req.user as JwtPayload;
+    const bookings = await bookingService.getBookings(user);
+    res.status(200).json({
+      success: true,
+      message: 'Bookings retrieved successfully',
+      data: bookings,
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Error retrieving bookings', error });
+  }
+};
+
+const updateBooking = async (req: Request, res: Response) => {
+  try {
+    const { bookingId } = req.params;
+    const { status } = req.body;
+
+    const updatedBooking = await bookingService.updateBookingStatus(
+      bookingId as string,
+      status
+    );
+
+    res.status(200).json({
+      success: true,
+      message: `Booking ${status} successfully`,
+      data: updatedBooking,
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Error updating booking', error });
+  }
+};
+
 export const bookingController = {
   createBooking,
+  getBookings,
+  updateBooking,
 };
