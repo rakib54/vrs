@@ -1,5 +1,4 @@
 import express, { Request, Response } from 'express';
-import config from './config';
 import initDb from './config/db';
 import { authRoutes } from './modules/auth/authRoutes';
 import { bookingRouter } from './modules/booking/bookingRoutes';
@@ -7,7 +6,7 @@ import { userRoutes } from './modules/user/userRoutes';
 import { vehicleRoutes } from './modules/vehicle/vehicleRoutes';
 
 const app = express();
-const PORT = config.port || 3000;
+// const PORT = config.port || 3000;
 
 app.get('/', (req: Request, res: Response) => {
   res.send('App is running');
@@ -23,6 +22,4 @@ app.use('/api/v1', userRoutes);
 app.use('/api/v1', vehicleRoutes);
 app.use('/api/v1', bookingRouter);
 
-app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
-});
+export default app;
